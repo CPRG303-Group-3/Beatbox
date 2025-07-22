@@ -13,6 +13,7 @@ export async function signUp(email: string, name: string, password: string) {
 
   if (data.user) {
     const { error: userError } = await supabase.from("user").insert({
+      id: data.user.id,
       email: email,
       name: name,
     });
