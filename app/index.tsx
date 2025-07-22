@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { signIn } from "../lib/supabase-auth";
 
 export default function App() {
   const router = useRouter();
@@ -18,6 +19,30 @@ export default function App() {
 
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Handle user sign-in via supabase authentication
+  const handleSignIn = async () => {
+    setErrorMsg("");
+
+    if (!email || !password) {
+      setErrorMsg("Email and password are required");
+      return;
+    }
+
+    try {
+      await signIn(email, password);
+      alert("Login successful! Welcome back!");
+      router.push("/(tabs)");
+    } catch (error: any) {
+      console.log("Error signing in: ", error);
+      if (error.message.includes("Invalid login credentials")) {
+        setErrorMsg("Invalid email or password\nPlease try again");
+      } else {
+        setErrorMsg("An error occurred while signing in\nPlease try again");
+      }
+    }
+  };
+
+  // Navigate to the sign-up page
   const goToSignUp = () => {
     router.push("/signup");
   };
@@ -48,7 +73,7 @@ export default function App() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Pressable style={styles.loginButton}>
+          <Pressable style={styles.loginButton} onPress={handleSignIn}>
             <Text style={styles.loginText}>Log In</Text>
           </Pressable>
           <Pressable style={styles.signupButton} onPress={goToSignUp}>
@@ -97,6 +122,10 @@ const styles = StyleSheet.create({
   },
   errorMsg: {
     color: "red",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 10,
+    textAlign: "center",
   },
   buttonContainer: {
     width: "80%",

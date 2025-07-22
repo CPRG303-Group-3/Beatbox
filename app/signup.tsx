@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { signUp } from "../lib/supabase-auth";
 
 export default function SignUp() {
   const router = useRouter();
@@ -23,7 +24,8 @@ export default function SignUp() {
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
-  const handleSignUp = () => {
+  // Handle user sign-up via supabase authentication
+  const handleSignUp = async () => {
     let valid = true;
     setErrorMsg("");
     setEmailError("");
@@ -65,15 +67,31 @@ export default function SignUp() {
       setErrorMsg("Please fix the errors above");
       return;
     } else {
-      console.log(
-        `Sign Up Successful for user: ${name.trim()} with email: ${email.trim()}`
-      );
+      try {
+        await signUp(email.trim(), name.trim(), password);
+        console.log(
+          `Sign Up Successful for user: ${name.trim()} with email: ${email.trim()}`
+        );
+        alert("Sign Up Successful! You can now log in.");
+        setEmail("");
+        setName("");
+        setPassword("");
+        setConfirmPassword("");
+      } catch (error: any) {
+        console.log("Sign Up Error: ", error);
+
+        if (error.message.includes("already registered")) {
+          setErrorMsg("This email is already registered.");
+        }
+      }
     }
   };
 
+  // Navigate back to the login page
   const goToLogin = () => {
     router.push("/");
   };
+
   return (
     <View style={{ flex: 1, backgroundColor: "white" }}>
       <SafeAreaView style={styles.container}>
@@ -122,11 +140,11 @@ export default function SignUp() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Pressable style={styles.loginButton} onPress={handleSignUp}>
-            <Text style={styles.loginText}>Sign Up</Text>
+          <Pressable style={styles.signupButton} onPress={handleSignUp}>
+            <Text style={styles.signupText}>Sign Up</Text>
           </Pressable>
-          <Pressable style={styles.signupButton} onPress={goToLogin}>
-            <Text style={styles.signupText}>Back to Login</Text>
+          <Pressable style={styles.loginButton} onPress={goToLogin}>
+            <Text style={styles.loginText}>Back to Login</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -174,25 +192,25 @@ const styles = StyleSheet.create({
     width: "80%",
     marginTop: 50,
   },
-  loginButton: {
+  signupButton: {
     backgroundColor: "#007bff",
     padding: 16,
     marginVertical: 10,
     borderRadius: 15,
   },
-  signupButton: {
+  loginButton: {
     backgroundColor: "#efefef",
     padding: 16,
     marginVertical: 10,
     borderRadius: 15,
   },
-  loginText: {
+  signupText: {
     textAlign: "center",
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
   },
-  signupText: {
+  loginText: {
     textAlign: "center",
     color: "#007bff",
     fontSize: 18,
