@@ -31,7 +31,7 @@ export default function App() {
     try {
       await signIn(email, password);
       alert("Login successful! Welcome back!");
-      router.push("/(tabs)");
+      router.push("./(tabs)/songs");
     } catch (error: any) {
       console.log("Error signing in: ", error);
       if (error.message.includes("Invalid login credentials")) {
