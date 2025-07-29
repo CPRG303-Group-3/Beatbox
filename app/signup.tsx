@@ -6,12 +6,14 @@ import {
   SafeAreaView,
   TextInput,
 } from "react-native";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { signUp } from "../lib/supabase-auth";
+import { useAuth } from "../lib/AuthContext";
 
 export default function SignUp() {
   const router = useRouter();
+  const { session } = useAuth();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -23,6 +25,13 @@ export default function SignUp() {
   const [nameError, setNameError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
+
+  // Redirect to songs if already logged in
+  useEffect(() => {
+    if (session) {
+      router.replace("./(tabs)/songs");
+    }
+  }, [session]);
 
   // Handle user sign-up via supabase authentication
   const handleSignUp = async () => {

@@ -7,17 +7,26 @@ import {
   Pressable,
   TextInput,
 } from "react-native";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { signIn } from "../lib/supabase-auth";
+import { useAuth } from "../lib/AuthContext";
 
 export default function App() {
   const router = useRouter();
+  const { session } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Redirect to songs if already logged in
+  useEffect(() => {
+    if (session) {
+      router.replace("./(tabs)/songs");
+    }
+  }, [session]);
 
   // Handle user sign-in via supabase authentication
   const handleSignIn = async () => {
@@ -30,8 +39,7 @@ export default function App() {
 
     try {
       await signIn(email, password);
-      alert("Login successful! Welcome back!");
-      router.push("./(tabs)/songs");
+      router.replace("./(tabs)/songs");
     } catch (error: any) {
       console.log("Error signing in: ", error);
       if (error.message.includes("Invalid login credentials")) {
