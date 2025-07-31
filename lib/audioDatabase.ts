@@ -215,8 +215,27 @@ export class AudioDatabase {
   }
 
   static async getFileDetails(fileUri: string): Promise<{ duration: number }> {
-    // In a real app, you would use a library to get audio file details
-    // For this example, we'll return a placeholder duration
-    return { duration: 180 }; // 3 minutes
+    try {
+      // Import Audio from expo-av
+      const { Audio } = require("expo-av");
+
+      // Load the audio file to get its metadata
+      const { sound, status } = await Audio.Sound.createAsync(
+        { uri: fileUri },
+        { shouldPlay: false }
+      );
+
+      // Get the duration from the status
+      const duration = status.durationMillis ? status.durationMillis / 1000 : 0;
+
+      // Unload the sound to free up resources
+      await sound.unloadAsync();
+
+      return { duration };
+    } catch (error) {
+      console.error("Error getting file details:", error);
+      // Return a default duration if there's an error
+      return { duration: 0 };
+    }
   }
 }
