@@ -6,8 +6,10 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { AudioFileRecord } from "../lib/audioDatabase";
+import { extractMetadataFromFilename } from "../lib/openRouterService";
 
 interface AudioMetadataModalProps {
   visible: boolean;
@@ -24,6 +26,8 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [processedFiles, setProcessedFiles] = useState<AudioFileRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   // Reset state when modal becomes visible or files change
   useEffect(() => {
@@ -32,8 +36,41 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
       setTitle("");
       setArtist("");
       setProcessedFiles([]);
+      setMetadataError(null);
+
+      // Auto-extract metadata from filename
+      fetchMetadataFromFilename(files[0].filename);
     }
   }, [visible, files]);
+
+  // When current file index changes, fetch metadata for the new file
+  useEffect(() => {
+    if (visible && files.length > 0 && currentFileIndex < files.length) {
+      fetchMetadataFromFilename(files[currentFileIndex].filename);
+    }
+  }, [currentFileIndex]);
+
+  const fetchMetadataFromFilename = async (filename: string) => {
+    try {
+      setIsLoading(true);
+      setMetadataError(null);
+
+      const result = await extractMetadataFromFilename(filename);
+
+      if (result.success) {
+        if (result.title) setTitle(result.title);
+        if (result.artist) setArtist(result.artist);
+      } else if (result.error) {
+        console.warn("Metadata extraction error:", result.error);
+        setMetadataError("Could not extract metadata automatically");
+      }
+    } catch (error) {
+      console.error("Error in metadata extraction:", error);
+      setMetadataError("An error occurred while extracting metadata");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const currentFile = files[currentFileIndex];
 
@@ -99,19 +136,32 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
           <Text style={styles.modalTitle}>Add Metadata</Text>
           <Text style={styles.fileNameText}>File: {currentFile.filename}</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Song Title (optional)"
-            value={title}
-            onChangeText={setTitle}
-          />
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007bff" />
+              <Text style={styles.loadingText}>Extracting metadata...</Text>
+            </View>
+          ) : (
+            <>
+              {metadataError && (
+                <Text style={styles.errorText}>{metadataError}</Text>
+              )}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Artist (optional)"
-            value={artist}
-            onChangeText={setArtist}
-          />
+              <TextInput
+                style={styles.input}
+                placeholder="Song Title (optional)"
+                value={title}
+                onChangeText={setTitle}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Artist (optional)"
+                value={artist}
+                onChangeText={setArtist}
+              />
+            </>
+          )}
 
           <View style={styles.buttonContainer}>
             <Pressable
@@ -145,6 +195,20 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#dc3545",
+    marginBottom: 10,
+    textAlign: "center",
+  },
   centeredView: {
     flex: 1,
     justifyContent: "center",
