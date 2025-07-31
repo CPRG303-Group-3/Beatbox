@@ -1,7 +1,7 @@
 import { View, StyleSheet, Text, TextInput, Pressable } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import AudioList from "./components/AudioList";
+import AudioList from "../../components/AudioList";
 
 export default function Songs() {
   const router = useRouter();

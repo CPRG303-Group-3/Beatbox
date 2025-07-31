@@ -7,13 +7,12 @@ import {
   StyleSheet,
   Pressable,
 } from "react-native";
-import type { Asset } from "expo-media-library";
-import { AudioDatabase, AudioFileRecord } from "../lib/audioDatabase";
+import { AudioFileRecord } from "../lib/audioDatabase";
 
 interface AudioMetadataModalProps {
   visible: boolean;
   files: AudioFileRecord[];
-  onClose: (updatedFiles?: AudioFileRecord[]) => void;
+  onClose: (processedFiles?: AudioFileRecord[]) => void;
 }
 
 export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
@@ -24,16 +23,23 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  const [processedFiles, setProcessedFiles] = useState<AudioFileRecord[]>([]);
 
   const currentFile = files[currentFileIndex];
 
-  const handleSave = async () => {
-    // Save metadata for current file
-    await AudioDatabase.updateRecord(currentFile.id, {
+  const handleSave = () => {
+    if (!currentFile) return;
+
+    // Update the current file with metadata
+    const updatedFile: AudioFileRecord = {
+      ...currentFile,
       title: title.trim() || undefined,
       artist: artist.trim() || undefined,
-      included: title.trim() !== "",
-    });
+      included: true,
+    };
+
+    // Add to processed files
+    setProcessedFiles([...processedFiles, updatedFile]);
 
     // Move to next file or close if done
     if (currentFileIndex < files.length - 1) {
@@ -41,15 +47,13 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
       setTitle("");
       setArtist("");
     } else {
-      onClose();
+      // Return all processed files to parent
+      onClose([...processedFiles, updatedFile]);
     }
   };
 
-  const handleSkip = async () => {
-    // Mark file as not included
-    await AudioDatabase.updateRecord(currentFile.id, {
-      included: false,
-    });
+  const handleSkip = () => {
+    // Skip this file (don't add to processed files)
 
     // Move to next file or close if done
     if (currentFileIndex < files.length - 1) {
@@ -57,8 +61,18 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
       setTitle("");
       setArtist("");
     } else {
-      onClose();
+      // Return processed files to parent
+      onClose(processedFiles);
     }
+  };
+
+  const handleCancel = () => {
+    // Cancel the entire process
+    setCurrentFileIndex(0);
+    setTitle("");
+    setArtist("");
+    setProcessedFiles([]);
+    onClose();
   };
 
   if (!currentFile) return null;
@@ -68,7 +82,7 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
       animationType="slide"
       transparent={true}
       visible={visible}
-      onRequestClose={() => onClose()}
+      onRequestClose={handleCancel}
     >
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
@@ -106,6 +120,10 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
               <Text style={styles.buttonText}>Skip</Text>
             </Pressable>
           </View>
+
+          <Pressable style={styles.cancelButton} onPress={handleCancel}>
+            <Text style={styles.cancelButtonText}>Cancel All</Text>
+          </Pressable>
 
           <Text style={styles.progressText}>
             {currentFileIndex + 1} of {files.length} files
@@ -180,5 +198,11 @@ const styles = StyleSheet.create({
   progressText: {
     marginTop: 10,
     color: "#666",
+  },
+  cancelButton: {
+    marginTop: 15,
+  },
+  cancelButtonText: {
+    color: "#dc3545",
   },
 });

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Pressable,
   Switch,
+  ActivityIndicator,
 } from "react-native";
 import { AudioDatabase, AudioFileRecord } from "../lib/audioDatabase";
 import * as Haptics from "expo-haptics";
@@ -26,13 +27,12 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
 }) => {
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
-  const [isIncluded, setIsIncluded] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (file) {
       setTitle(file.title || "");
       setArtist(file.artist || "");
-      setIsIncluded(file.included);
     }
   }, [file]);
 
@@ -40,18 +40,25 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
     if (!file) return;
 
     try {
-      await AudioDatabase.updateRecord(file.id, {
+      setIsLoading(true);
+
+      const success = await AudioDatabase.updateRecord(file.id, {
         title: title.trim() || undefined,
         artist: artist.trim() || undefined,
-        included: isIncluded,
       });
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onUpdate();
-      onClose();
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onUpdate();
+        onClose();
+      } else {
+        throw new Error("Failed to update record");
+      }
     } catch (error) {
       console.error("Error updating file:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,15 +66,22 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
     if (!file) return;
 
     try {
-      await AudioDatabase.updateRecord(file.id, {
-        included: false,
-      });
+      setIsLoading(true);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      onUpdate();
-      onClose();
+      const success = await AudioDatabase.deleteRecord(file.id);
+
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        onUpdate();
+        onClose();
+      } else {
+        throw new Error("Failed to delete record");
+      }
     } catch (error) {
       console.error("Error deleting file:", error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -101,26 +115,29 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
             onChangeText={setArtist}
           />
 
-          <View style={styles.switchContainer}>
-            <Text>Include in Library</Text>
-            <Switch value={isIncluded} onValueChange={setIsIncluded} />
-          </View>
+          {isLoading ? (
+            <ActivityIndicator
+              size="large"
+              color="#007bff"
+              style={styles.loader}
+            />
+          ) : (
+            <View style={styles.buttonContainer}>
+              <Pressable
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSave}
+              >
+                <Text style={styles.buttonText}>Save</Text>
+              </Pressable>
 
-          <View style={styles.buttonContainer}>
-            <Pressable
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-            >
-              <Text style={styles.buttonText}>Save</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.button, styles.deleteButton]}
-              onPress={handleDelete}
-            >
-              <Text style={styles.buttonText}>Remove</Text>
-            </Pressable>
-          </View>
+              <Pressable
+                style={[styles.button, styles.deleteButton]}
+                onPress={handleDelete}
+              >
+                <Text style={styles.buttonText}>Delete</Text>
+              </Pressable>
+            </View>
+          )}
 
           <Pressable style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -172,13 +189,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  switchContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    marginVertical: 10,
-  },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -206,5 +216,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: "#007bff",
+  },
+  loader: {
+    marginVertical: 20,
   },
 });

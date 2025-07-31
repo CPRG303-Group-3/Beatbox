@@ -10,13 +10,13 @@ import {
   TextStyle,
   TouchableOpacity,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
-import * as MediaLibrary from "expo-media-library";
 import { Audio } from "expo-av";
-import type { Asset } from "expo-media-library";
-import { AudioDatabase, AudioFileRecord } from "../../../lib/audioDatabase";
-import { AudioMetadataModal } from "../../../components/AudioMetadataModal";
-import { AudioFileManagerModal } from "../../../components/AudioFileManagerModal";
+import * as DocumentPicker from "expo-document-picker";
+import { AudioDatabase, AudioFileRecord } from "../lib/audioDatabase";
+import { AudioMetadataModal } from "./AudioMetadataModal";
+import { AudioFileManagerModal } from "./AudioFileManagerModal";
 
 interface Styles {
   container: ViewStyle;
@@ -26,13 +26,13 @@ interface Styles {
   duration: TextStyle;
   emptyText: TextStyle;
   playingIndicator: TextStyle;
-  scanButton: ViewStyle;
-  scanButtonText: TextStyle;
+  selectButton: ViewStyle;
+  selectButtonText: TextStyle;
+  loadingContainer: ViewStyle;
 }
 
 const AudioList: React.FC = () => {
   const [audioFiles, setAudioFiles] = useState<AudioFileRecord[]>([]);
-  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [newFiles, setNewFiles] = useState<AudioFileRecord[]>([]);
@@ -42,65 +42,28 @@ const AudioList: React.FC = () => {
   );
   const [isFileManagerModalVisible, setIsFileManagerModalVisible] =
     useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const getAudio = async (): Promise<void> => {
-    console.log("getAudio called, current permission:", permissionResponse);
-
-    // Ensure we have permission
-    let permission = permissionResponse;
-    if (!permission?.granted) {
-      console.log("Requesting media library permission");
-      permission = await requestPermission();
-    }
-
-    if (!permission?.granted) {
-      console.error("Media library permission denied");
-      alert("Permission to access media library is required!");
-      return;
-    }
-
+  const loadAudioFiles = async (): Promise<void> => {
     try {
-      console.log("Fetching media library assets");
-      const media = await MediaLibrary.getAssetsAsync({
-        mediaType: "audio",
-        first: 100,
-      });
-
-      console.log(`Found ${media.assets.length} audio files`);
-
-      // Sync media library with our database
-      await AudioDatabase.syncWithMediaLibrary(media.assets);
-
-      // Get new files that need metadata
-      const newUnprocessedFiles = await AudioDatabase.getNewFiles(media.assets);
-
-      console.log(`${newUnprocessedFiles.length} new unprocessed files`);
-
-      if (newUnprocessedFiles.length > 0) {
-        setNewFiles(newUnprocessedFiles);
-        setIsMetadataModalVisible(true);
-      }
-
-      // Fetch included files from database
+      setIsLoading(true);
       const includedFiles = await AudioDatabase.getIncludedRecords();
-      console.log(`${includedFiles.length} included files`);
       setAudioFiles(includedFiles);
     } catch (error) {
-      console.error("Comprehensive error fetching audio files:", error);
+      console.error("Error loading audio files:", error);
       alert(
-        `Error scanning media library: ${
+        `Error loading audio files: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // Request permissions and load audio files on component mount
-    if (permissionResponse?.granted) {
-      getAudio();
-    }
-  }, [permissionResponse]);
+    loadAudioFiles();
+  }, []);
 
   useEffect(() => {
     // Cleanup sound when component unmounts
@@ -110,6 +73,61 @@ const AudioList: React.FC = () => {
       }
     };
   }, [sound]);
+
+  const selectAudioFiles = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "audio/mpeg",
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      setIsLoading(true);
+
+      const newUnprocessedFiles: AudioFileRecord[] = [];
+
+      for (const file of result.assets) {
+        // Get file details (in a real app, you would extract duration from the file)
+        const fileDetails = await AudioDatabase.getFileDetails(file.uri);
+
+        const newFile: Omit<AudioFileRecord, "id"> = {
+          filename: file.name,
+          uri: file.uri,
+          duration: fileDetails.duration,
+          included: true,
+          lastScanned: Date.now(),
+        };
+
+        // Create a temporary ID for the modal
+        const tempRecord = {
+          ...newFile,
+          id: `temp-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 9)}`,
+        };
+
+        newUnprocessedFiles.push(tempRecord);
+      }
+
+      if (newUnprocessedFiles.length > 0) {
+        setNewFiles(newUnprocessedFiles);
+        setIsMetadataModalVisible(true);
+      }
+    } catch (error) {
+      console.error("Error selecting audio files:", error);
+      alert(
+        `Error selecting audio files: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const playAudio = async (audioFile: AudioFileRecord) => {
     try {
@@ -167,31 +185,68 @@ const AudioList: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const handleMetadataModalClose = async () => {
+  const handleMetadataModalClose = async (
+    processedFiles?: AudioFileRecord[]
+  ) => {
     setIsMetadataModalVisible(false);
-    const includedFiles = await AudioDatabase.getIncludedRecords();
-    setAudioFiles(includedFiles);
+
+    if (processedFiles && processedFiles.length > 0) {
+      setIsLoading(true);
+
+      try {
+        // Save each file to Supabase
+        for (const file of processedFiles) {
+          await AudioDatabase.saveRecord({
+            filename: file.filename,
+            uri: file.uri,
+            duration: file.duration,
+            included: true,
+            title: file.title,
+            artist: file.artist,
+            lastScanned: Date.now(),
+          });
+        }
+
+        // Reload the audio files
+        await loadAudioFiles();
+      } catch (error) {
+        console.error("Error saving files:", error);
+        alert(
+          `Error saving files: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleFileManagerUpdate = async () => {
-    const includedFiles = await AudioDatabase.getIncludedRecords();
-    setAudioFiles(includedFiles);
+    await loadAudioFiles();
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Pressable style={styles.scanButton} onPress={getAudio}>
-        <Text style={styles.scanButtonText}>Scan Media Library</Text>
+      <Pressable style={styles.selectButton} onPress={selectAudioFiles}>
+        <Text style={styles.selectButtonText}>Select MP3 Files</Text>
       </Pressable>
 
-      <FlatList
-        data={audioFiles}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No audio files found.</Text>
-        }
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text>Loading...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={audioFiles}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No audio files found.</Text>
+          }
+        />
+      )}
 
       <AudioMetadataModal
         visible={isMetadataModalVisible}
@@ -241,17 +296,22 @@ const styles = StyleSheet.create<Styles>({
     color: "#007bff",
     marginTop: 5,
   },
-  scanButton: {
+  selectButton: {
     backgroundColor: "#007bff",
     padding: 15,
     margin: 10,
     borderRadius: 10,
     alignItems: "center",
   },
-  scanButtonText: {
+  selectButtonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
