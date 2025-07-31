@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   Pressable,
   ActivityIndicator,
+  Image,
+  ImageStyle,
 } from "react-native";
 import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
@@ -29,6 +31,11 @@ interface Styles {
   selectButton: ViewStyle;
   selectButtonText: TextStyle;
   loadingContainer: ViewStyle;
+  rowContainer: ViewStyle;
+  coverArt: ImageStyle;
+  placeholderCover: ViewStyle;
+  placeholderText: TextStyle;
+  textContainer: ViewStyle;
 }
 
 const AudioList: React.FC = () => {
@@ -172,16 +179,33 @@ const AudioList: React.FC = () => {
         setIsFileManagerModalVisible(true);
       }}
     >
-      <Text style={styles.filename}>{item.title || item.filename}</Text>
-      {item.artist && (
-        <Text style={styles.duration}>Artist: {item.artist}</Text>
-      )}
-      <Text style={styles.duration}>
-        Duration: {Math.round(item.duration)}s
-      </Text>
-      {currentlyPlaying === item.id ? (
-        <Text style={styles.playingIndicator}>Now Playing</Text>
-      ) : null}
+      <View style={styles.rowContainer}>
+        {item.cover_art_url ? (
+          <Image
+            source={{ uri: item.cover_art_url }}
+            style={styles.coverArt}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.placeholderCover}>
+            <Text style={styles.placeholderText}>
+              {(item.title || item.filename).charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+        <View style={styles.textContainer}>
+          <Text style={styles.filename}>{item.title || item.filename}</Text>
+          {item.artist && (
+            <Text style={styles.duration}>Artist: {item.artist}</Text>
+          )}
+          <Text style={styles.duration}>
+            Duration: {Math.round(item.duration)}s
+          </Text>
+          {currentlyPlaying === item.id ? (
+            <Text style={styles.playingIndicator}>Now Playing</Text>
+          ) : null}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
@@ -318,6 +342,33 @@ const styles = StyleSheet.create<Styles>({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  rowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  coverArt: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  placeholderCover: {
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    backgroundColor: "#007bff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  placeholderText: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  textContainer: {
+    flex: 1,
   },
 });
 

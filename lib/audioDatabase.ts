@@ -12,6 +12,7 @@ export interface AudioFileRecord {
   title?: string;
   artist?: string;
   lastScanned: number;
+  cover_art_url?: string;
 }
 
 export class AudioDatabase {
@@ -74,6 +75,19 @@ export class AudioDatabase {
         throw new Error("Failed to upload file");
       }
 
+      // Try to fetch cover art if title and artist are provided
+      let coverArtUrl = null;
+      if (record.title && record.artist) {
+        try {
+          // Import the MusicBrainz service
+          const { searchRelease } = require("./musicbrainzService");
+          coverArtUrl = await searchRelease(record.artist, record.title);
+        } catch (coverArtError) {
+          console.error("Error fetching cover art:", coverArtError);
+          // Continue without cover art if there's an error
+        }
+      }
+
       // Insert record into the database
       const { data, error } = await supabase
         .from("audio_files")
@@ -84,6 +98,7 @@ export class AudioDatabase {
           artist: record.artist || null,
           duration: record.duration,
           file_path: filePath,
+          cover_art_url: coverArtUrl,
         })
         .select("id")
         .single();
@@ -105,11 +120,25 @@ export class AudioDatabase {
     updates: Partial<Omit<AudioFileRecord, "id">>
   ): Promise<boolean> {
     try {
+      // Try to fetch cover art if title and artist are updated
+      let coverArtUrl = undefined;
+      if (updates.title && updates.artist) {
+        try {
+          // Import the MusicBrainz service
+          const { searchRelease } = require("./musicbrainzService");
+          coverArtUrl = await searchRelease(updates.artist, updates.title);
+        } catch (coverArtError) {
+          console.error("Error fetching cover art:", coverArtError);
+          // Continue without cover art if there's an error
+        }
+      }
+
       const { error } = await supabase
         .from("audio_files")
         .update({
           title: updates.title,
           artist: updates.artist,
+          cover_art_url: coverArtUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -203,6 +232,7 @@ export class AudioDatabase {
             title: item.title || undefined,
             artist: item.artist || undefined,
             lastScanned: new Date(item.created_at).getTime(),
+            cover_art_url: item.cover_art_url || undefined,
           };
         })
       );
