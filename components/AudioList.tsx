@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,15 +13,12 @@ import {
   ActivityIndicator,
   Image,
   ImageStyle,
-  Modal,
 } from "react-native";
-import { Audio } from "expo-av";
 import * as DocumentPicker from "expo-document-picker";
 import { AudioDatabase, AudioFileRecord } from "../lib/audioDatabase";
 import { AudioMetadataModal } from "./AudioMetadataModal";
 import { AudioFileManagerModal } from "./AudioFileManagerModal";
-import { MiniPlayer } from "./MiniPlayer";
-import { NowPlayingScreen } from "./NowPlayingScreen";
+import { useAudioPlayer } from "../lib/AudioPlayerContext";
 
 interface Styles {
   container: ViewStyle;
@@ -43,10 +40,6 @@ interface Styles {
 
 const AudioList: React.FC = () => {
   const [audioFiles, setAudioFiles] = useState<AudioFileRecord[]>([]);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [currentSong, setCurrentSong] = useState<AudioFileRecord | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [newFiles, setNewFiles] = useState<AudioFileRecord[]>([]);
   const [isMetadataModalVisible, setIsMetadataModalVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState<AudioFileRecord | null>(
@@ -54,8 +47,11 @@ const AudioList: React.FC = () => {
   );
   const [isFileManagerModalVisible, setIsFileManagerModalVisible] =
     useState(false);
-  const [isNowPlayingVisible, setIsNowPlayingVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Use the shared audio player context
+  const { currentSong, isPlaying, playAudio, stopAudio, showNowPlaying } =
+    useAudioPlayer();
 
   const loadAudioFiles = async (): Promise<void> => {
     try {
@@ -77,15 +73,6 @@ const AudioList: React.FC = () => {
   useEffect(() => {
     loadAudioFiles();
   }, []);
-
-  useEffect(() => {
-    // Cleanup sound when component unmounts
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
 
   const selectAudioFiles = async () => {
     try {
@@ -142,77 +129,17 @@ const AudioList: React.FC = () => {
     }
   };
 
-  const playAudio = async (audioFile: AudioFileRecord) => {
-    try {
-      // Stop and unload current sound if exists
-      if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      }
-
-      // Load and play new sound
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioFile.uri },
-        { shouldPlay: true }
-      );
-
-      // Set up status update listener
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          setIsPlaying(status.isPlaying);
-        }
-      });
-
-      setSound(newSound);
-      setCurrentlyPlaying(audioFile.id);
-      setCurrentSong(audioFile);
-      setIsPlaying(true);
-    } catch (error) {
-      console.error("Error playing audio:", error);
-      alert("Could not play audio file");
-    }
-  };
-
-  const stopAudio = async () => {
-    if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-      setCurrentlyPlaying(null);
-      setCurrentSong(null);
-      setIsPlaying(false);
-      setSound(null);
-    }
-  };
-
-  const togglePlayPause = async () => {
-    if (!sound) return;
-
-    try {
-      if (isPlaying) {
-        await sound.pauseAsync();
-      } else {
-        await sound.playAsync();
-      }
-    } catch (error) {
-      console.error("Error toggling play/pause:", error);
-    }
-  };
-
-  const openNowPlaying = () => {
-    setIsNowPlayingVisible(true);
-  };
-
-  const closeNowPlaying = () => {
-    setIsNowPlayingVisible(false);
+  const handlePlayAudio = (audioFile: AudioFileRecord) => {
+    playAudio(audioFile);
   };
 
   const renderItem: ListRenderItem<AudioFileRecord> = ({ item }) => (
     <TouchableOpacity
       style={[
         styles.itemContainer,
-        currentlyPlaying === item.id && styles.playingItemContainer,
+        currentSong?.id === item.id && styles.playingItemContainer,
       ]}
-      onPress={() => playAudio(item)}
+      onPress={() => handlePlayAudio(item)}
       onLongPress={() => {
         setSelectedFile(item);
         setIsFileManagerModalVisible(true);
@@ -240,7 +167,7 @@ const AudioList: React.FC = () => {
           <Text style={styles.duration}>
             Duration: {Math.round(item.duration)}s
           </Text>
-          {currentlyPlaying === item.id ? (
+          {currentSong?.id === item.id ? (
             <Text style={styles.playingIndicator}>Now Playing</Text>
           ) : null}
         </View>
@@ -332,32 +259,6 @@ const AudioList: React.FC = () => {
         onClose={() => setIsFileManagerModalVisible(false)}
         onUpdate={handleFileManagerUpdate}
       />
-
-      {/* Mini Player */}
-      {currentSong && (
-        <MiniPlayer
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPlayPause={togglePlayPause}
-          onPress={openNowPlaying}
-        />
-      )}
-
-      {/* Now Playing Screen */}
-      {currentSong && (
-        <Modal
-          visible={isNowPlayingVisible}
-          animationType="slide"
-          presentationStyle="fullScreen"
-        >
-          <NowPlayingScreen
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlayPause={togglePlayPause}
-            onClose={closeNowPlaying}
-          />
-        </Modal>
-      )}
     </SafeAreaView>
   );
 };
