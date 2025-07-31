@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { AudioDatabase, AudioFileRecord } from "../lib/audioDatabase";
 import * as Haptics from "expo-haptics";
+import { AddToPlaylistModal } from "./AddToPlaylistModal";
 
 interface AudioFileManagerModalProps {
   visible: boolean;
@@ -28,6 +29,8 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddToPlaylistModalVisible, setIsAddToPlaylistModalVisible] =
+    useState(false);
 
   useEffect(() => {
     if (file) {
@@ -122,26 +125,43 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
               style={styles.loader}
             />
           ) : (
-            <View style={styles.buttonContainer}>
-              <Pressable
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.buttonText}>Save</Text>
-              </Pressable>
+            <>
+              <View style={styles.buttonContainer}>
+                <Pressable
+                  style={[styles.button, styles.saveButton]}
+                  onPress={handleSave}
+                >
+                  <Text style={styles.buttonText}>Save</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.button, styles.deleteButton]}
+                  onPress={handleDelete}
+                >
+                  <Text style={styles.buttonText}>Delete</Text>
+                </Pressable>
+              </View>
 
               <Pressable
-                style={[styles.button, styles.deleteButton]}
-                onPress={handleDelete}
+                style={styles.playlistButton}
+                onPress={() => setIsAddToPlaylistModalVisible(true)}
               >
-                <Text style={styles.buttonText}>Delete</Text>
+                <Text style={styles.playlistButtonText}>Add to Playlist</Text>
               </Pressable>
-            </View>
+            </>
           )}
 
           <Pressable style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </Pressable>
+
+          {file && (
+            <AddToPlaylistModal
+              visible={isAddToPlaylistModalVisible}
+              audioFileId={file.id}
+              onClose={() => setIsAddToPlaylistModalVisible(false)}
+            />
+          )}
         </View>
       </View>
     </Modal>
@@ -149,6 +169,18 @@ export const AudioFileManagerModal: React.FC<AudioFileManagerModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  playlistButton: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  playlistButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
   centeredView: {
     flex: 1,
     justifyContent: "center",

@@ -1,52 +1,72 @@
-import { View, StyleSheet, Text, Image, Pressable } from "react-native";
-import { useState } from "react";
-import { useRouter } from "expo-router";
+import { View, StyleSheet, SafeAreaView } from "react-native";
+import { useState, useEffect } from "react";
+import { PlaylistList } from "../../components/PlaylistList";
+import { PlaylistDetail } from "../../components/PlaylistDetail";
+import { PlaylistAudioFile } from "../../lib/playlistService";
+import { Audio } from "expo-av";
 
 export default function Playlists() {
-  const router = useRouter();
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(
+    null
+  );
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  const handleSelectPlaylist = (playlistId: string) => {
+    setSelectedPlaylistId(playlistId);
+  };
+
+  const handleBack = () => {
+    setSelectedPlaylistId(null);
+  };
+
+  const handlePlaySong = async (song: PlaylistAudioFile) => {
+    try {
+      // Stop and unload current sound if exists
+      if (sound) {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+      }
+
+      // Load and play new sound
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: song.uri },
+        { shouldPlay: true }
+      );
+
+      setSound(newSound);
+    } catch (error) {
+      console.error("Error playing audio:", error);
+    }
+  };
+
+  // Clean up sound when component unmounts
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your Playlists</Text>
-
-      <Pressable style={styles.button}>
-        <Image source={require("../../assets/plus.png")} style={styles.icon} />
-        <Text style={styles.buttonText}>Create New Playlist</Text>
-      </Pressable>
-    </View>
+    <SafeAreaView style={styles.container}>
+      {selectedPlaylistId ? (
+        <PlaylistDetail
+          playlistId={selectedPlaylistId}
+          onBack={handleBack}
+          onPlaySong={handlePlaySong}
+        />
+      ) : (
+        <PlaylistList onSelectPlaylist={handleSelectPlaylist} />
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 16,
-  },
-  icon: {
-    width: 24,
-    height: 24,
-    justifyContent: "space-between",
-    verticalAlign: "middle",
-  },
-  button: {
-    backgroundColor: "#007bff",
-    padding: 12,
-    borderRadius: 8,
-    marginLeft: 160,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "bold",
-    alignSelf: "center",
-    marginRight: 30,
+    paddingTop: 48,
   },
 });

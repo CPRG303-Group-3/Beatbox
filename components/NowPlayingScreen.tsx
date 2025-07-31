@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { AudioFileRecord } from "../lib/audioDatabase";
 import { getLyrics } from "../lib/lyricsService";
+import { AddToPlaylistModal } from "./AddToPlaylistModal";
 
 interface NowPlayingScreenProps {
   currentSong: AudioFileRecord;
@@ -39,6 +40,8 @@ interface Styles {
   artist: TextStyle;
   controls: ViewStyle;
   playButton: ViewStyle;
+  addToPlaylistButton: ViewStyle;
+  addToPlaylistText: TextStyle;
   lyricsContainer: ViewStyle;
   lyricsHeader: TextStyle;
   lyrics: TextStyle;
@@ -57,6 +60,8 @@ export const NowPlayingScreen: React.FC<NowPlayingScreenProps> = ({
 }) => {
   const [lyrics, setLyrics] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAddToPlaylistModalVisible, setIsAddToPlaylistModalVisible] =
+    useState(false);
 
   useEffect(() => {
     const fetchLyrics = async () => {
@@ -128,6 +133,13 @@ export const NowPlayingScreen: React.FC<NowPlayingScreenProps> = ({
                 color="#007bff"
               />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addToPlaylistButton}
+              onPress={() => setIsAddToPlaylistModalVisible(true)}
+            >
+              <Ionicons name="add-circle" size={30} color="#4CAF50" />
+              <Text style={styles.addToPlaylistText}>Add to Playlist</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.lyricsContainer}>
@@ -147,6 +159,14 @@ export const NowPlayingScreen: React.FC<NowPlayingScreenProps> = ({
           </View>
         </ScrollView>
       </View>
+
+      {currentSong && (
+        <AddToPlaylistModal
+          visible={isAddToPlaylistModalVisible}
+          audioFileId={currentSong.id}
+          onClose={() => setIsAddToPlaylistModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -231,6 +251,19 @@ const styles = StyleSheet.create<Styles>({
   },
   playButton: {
     padding: 10,
+  },
+  addToPlaylistButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    padding: 8,
+    borderRadius: 20,
+    marginLeft: 15,
+  },
+  addToPlaylistText: {
+    color: "#4CAF50",
+    fontWeight: "bold",
+    marginLeft: 5,
   },
   lyricsContainer: {
     paddingHorizontal: 20,
