@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -24,6 +24,16 @@ export const AudioMetadataModal: React.FC<AudioMetadataModalProps> = ({
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [processedFiles, setProcessedFiles] = useState<AudioFileRecord[]>([]);
+
+  // Reset state when modal becomes visible or files change
+  useEffect(() => {
+    if (visible && files.length > 0) {
+      setCurrentFileIndex(0);
+      setTitle("");
+      setArtist("");
+      setProcessedFiles([]);
+    }
+  }, [visible, files]);
 
   const currentFile = files[currentFileIndex];
 

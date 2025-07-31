@@ -194,6 +194,9 @@ const AudioList: React.FC = () => {
       setIsLoading(true);
 
       try {
+        // Stop any currently playing audio
+        await stopAudio();
+
         // Save each file to Supabase
         for (const file of processedFiles) {
           await AudioDatabase.saveRecord({
@@ -206,6 +209,9 @@ const AudioList: React.FC = () => {
             lastScanned: Date.now(),
           });
         }
+
+        // Clear the current files list before reloading
+        setAudioFiles([]);
 
         // Reload the audio files
         await loadAudioFiles();
