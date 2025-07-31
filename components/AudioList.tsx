@@ -311,6 +311,9 @@ const AudioList: React.FC = () => {
           data={audioFiles}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          contentContainerStyle={{
+            paddingBottom: currentSong ? 140 : 0, // Add padding for mini player (60px) + tab bar (80px)
+          }}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No audio files found.</Text>
           }

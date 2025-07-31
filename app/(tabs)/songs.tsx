@@ -17,7 +17,7 @@ export default function Songs() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 0,
     backgroundColor: "#fff",
     paddingTop: 48,
   },
@@ -25,5 +25,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
 });

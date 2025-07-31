@@ -94,13 +94,16 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
 const styles = StyleSheet.create<Styles>({
   container: {
-    width: width,
+    width: "100%",
     height: 60,
     backgroundColor: "#f8f8f8",
     borderTopWidth: 1,
     borderTopColor: "#e0e0e0",
     position: "absolute",
-    bottom: 49, // Position above tab bar (49 is the default tab bar height)
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
   content: {
     flex: 1,
