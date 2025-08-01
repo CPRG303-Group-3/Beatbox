@@ -6,13 +6,57 @@ import {
   Pressable,
   Switch,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
+import { signOut } from "../../lib/supabase-auth";
+import { supabase } from "../../lib/supabase";
 
 export default function Settings() {
   const router = useRouter();
-  const username = "User Name"; // Placeholder for username
-  const email = "useremail@emailaddress.com"; // Placeholder for email
+  const [username, setUsername] = useState("Loading...");
+  const [email, setEmail] = useState("Loading...");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          setEmail(user.email || "No email");
+
+          const { data, error } = await supabase
+            .from("user")
+            .select("name")
+            .eq("id", user.id)
+            .single();
+
+          if (error) {
+            console.error("Error fetching user name:", error);
+            setUsername("No name");
+          } else {
+            setUsername(data.name || "No name");
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setUsername("Error loading");
+        setEmail("Error loading");
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push("/"); // Navigate to home or login screen
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -21,16 +65,12 @@ export default function Settings() {
       <View style={styles.userDetails}>
         <Text style={{ fontSize: 18, fontWeight: "bold" }}>{username}</Text>
         <Text>{email}</Text>
-        <Pressable style={styles.edit}>
-          <Text style={{ color: "#007bff", fontWeight: "bold" }}>
-            Change Password
-          </Text>
-        </Pressable>
       </View>
 
       <View style={styles.setting}>
-        <Text style={{ fontWeight: "bold" }}>A Setting To Do Something</Text>
-        <Switch value={true} onValueChange={() => {}} />
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -64,5 +104,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 20,
     marginTop: 28,
+  },
+  logoutButton: {
+    backgroundColor: "#dc3545",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: "center",
+  },
+  logoutText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
