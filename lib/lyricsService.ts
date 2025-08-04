@@ -1,12 +1,15 @@
 /**
- * Service for fetching song lyrics from the lyrics.ovh API
+ * Service for fetching song lyrics from the KSoft.Si API
  */
 
 // Cache to store previously fetched lyrics
 const lyricsCache: Record<string, string> = {};
 
+// Load API Key (recommended: use .env and load via process.env)
+const KSOFT_API_KEY = 'your_api_key_here'; // 🔐 Replace this with real key or from env
+
 /**
- * Fetch lyrics for a song from lyrics.ovh API
+ * Fetch lyrics for a song from KSoft.Si API
  * @param artist The song artist
  * @param title The song title
  * @returns Promise resolving to the lyrics or null if not found
@@ -16,39 +19,35 @@ export async function getLyrics(
   title: string
 ): Promise<string | null> {
   try {
-    // Create a cache key
-    const cacheKey = `${artist.toLowerCase()}-${title.toLowerCase()}`;
+    const query = `${artist} ${title}`;
+    const cacheKey = query.toLowerCase().trim();
 
-    // Check if lyrics are already in cache
     if (lyricsCache[cacheKey]) {
       return lyricsCache[cacheKey];
     }
 
-    // Clean up artist and title for URL
-    const cleanArtist = encodeURIComponent(artist.trim());
-    const cleanTitle = encodeURIComponent(title.trim());
+    const response = await fetch(`https://api.ksoft.si/lyrics/search?q=${encodeURIComponent(query)}`, {
+      headers: {
+        Authorization: `Bearer ${KSOFT_API_KEY}`
+      }
+    });
 
-    // Fetch lyrics from API
-    const response = await fetch(
-      `https://api.lyrics.ovh/v1/${cleanArtist}/${cleanTitle}`
-    );
-
-    // If the request was successful
     if (response.ok) {
       const data = await response.json();
 
-      // Store in cache
-      lyricsCache[cacheKey] = data.lyrics || "Lyrics not found.";
-      return data.lyrics || null;
-    } else if (response.status === 404) {
-      console.log(`Lyrics not found for ${artist} - ${title}`);
-      return null;
+      if (data.data && data.data.length > 0) {
+        const lyrics = data.data[0].lyrics;
+        lyricsCache[cacheKey] = lyrics;
+        return lyrics;
+      } else {
+        return null;
+      }
     } else {
-      console.error(`Error fetching lyrics: ${response.status}`);
+      console.error(`KSoft API error: ${response.status}`);
       return null;
     }
   } catch (error) {
-    console.error("Error in getLyrics:", error);
+    console.error('Error fetching lyrics:', error);
     return null;
   }
 }
