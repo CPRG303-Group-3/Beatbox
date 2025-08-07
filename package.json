@@ -20,6 +20,7 @@
     "expo-media-library": "^17.1.7",
     "expo-router": "^5.1.4",
     "expo-status-bar": "~2.2.3",
+    "genius-lyrics-api": "^3.2.1",
     "react": "19.0.0",
     "react-native": "0.79.3",
     "react-native-url-polyfill": "^2.0.0"

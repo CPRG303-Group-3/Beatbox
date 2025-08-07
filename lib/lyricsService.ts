@@ -1,12 +1,14 @@
 /**
- * Service for fetching song lyrics from the lyrics.ovh API
+ * Service for fetching song lyrics from the Genius API
  */
+
+import { getLyrics as getGeniusLyrics } from "genius-lyrics-api";
 
 // Cache to store previously fetched lyrics
 const lyricsCache: Record<string, string> = {};
 
 /**
- * Fetch lyrics for a song from lyrics.ovh API
+ * Fetch lyrics for a song from Genius API
  * @param artist The song artist
  * @param title The song title
  * @returns Promise resolving to the lyrics or null if not found
@@ -24,27 +26,24 @@ export async function getLyrics(
       return lyricsCache[cacheKey];
     }
 
-    // Clean up artist and title for URL
-    const cleanArtist = encodeURIComponent(artist.trim());
-    const cleanTitle = encodeURIComponent(title.trim());
+    // Set up options for Genius API
+    const options = {
+      apiKey: process.env.EXPO_PUBLIC_GENIUS_ACCESS_TOKEN || "",
+      title: title.trim(),
+      artist: artist.trim(),
+      optimizeQuery: true,
+    };
 
-    // Fetch lyrics from API
-    const response = await fetch(
-      `https://api.lyrics.ovh/v1/${cleanArtist}/${cleanTitle}`
-    );
+    // Fetch lyrics from Genius API
+    const lyrics = await getGeniusLyrics(options);
 
-    // If the request was successful
-    if (response.ok) {
-      const data = await response.json();
-
+    // If lyrics were found
+    if (lyrics) {
       // Store in cache
-      lyricsCache[cacheKey] = data.lyrics || "Lyrics not found.";
-      return data.lyrics || null;
-    } else if (response.status === 404) {
-      console.log(`Lyrics not found for ${artist} - ${title}`);
-      return null;
+      lyricsCache[cacheKey] = lyrics;
+      return lyrics;
     } else {
-      console.error(`Error fetching lyrics: ${response.status}`);
+      console.log(`Lyrics not found for ${artist} - ${title}`);
       return null;
     }
   } catch (error) {
